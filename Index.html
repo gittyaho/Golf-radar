@@ -39,13 +39,10 @@
       user-select: none;
     }
     html, body {
-      height: 100vh;
-      height: 100dvh;
+      height: 100%;
       width: 100%;
       margin: 0;
       padding: 0;
-      padding-top: env(safe-area-inset-top);
-      padding-bottom: env(safe-area-inset-bottom);
       overflow: hidden;
       background-color: #090d16;
       color: #f8fafc;
@@ -78,52 +75,34 @@
     }
   </style>
 </head>
-<body class="flex flex-col h-[100dvh] max-h-[100dvh] w-screen overflow-hidden select-none">
+<body class="flex flex-col h-screen w-screen overflow-hidden select-none">
 
-  <!-- TOP HEADER BAR WITH PRIMARY CAPTURE ACTIONS -->
-  <header class="flex flex-wrap items-center justify-between gap-2 px-3 py-2 bg-slate-900/95 border-b border-slate-800 z-30 shrink-0">
+  <!-- TOP HEADER BAR -->
+  <header class="flex items-center justify-between px-3 py-2 bg-slate-900/95 border-b border-slate-800 z-30 shrink-0">
     <div class="flex items-center gap-2">
-      <div class="w-8 h-8 rounded-xl bg-gradient-to-br from-emerald-500 to-cyan-600 flex items-center justify-center shadow-lg shadow-emerald-950/50 shrink-0">
+      <div class="w-8 h-8 rounded-xl bg-gradient-to-br from-emerald-500 to-cyan-600 flex items-center justify-center shadow-lg shadow-emerald-950/50">
         <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24">
           <circle cx="12" cy="12" r="9" />
           <path stroke-linecap="round" d="M9 10h.01M15 10h.01M12 14h.01M9 16h.01M15 16h.01" />
         </svg>
       </div>
       <div>
-        <h1 class="text-xs sm:text-sm font-extrabold tracking-tight text-white leading-none">POCKET RADAR</h1>
-        <p class="text-[9px] sm:text-[10px] text-slate-400 font-medium mt-0.5 hidden sm:block">Optical Launch Monitor & 3D Sim</p>
+        <h1 class="text-sm font-extrabold tracking-tight text-white leading-none">POCKET RADAR</h1>
+        <p class="text-[10px] text-slate-400 font-medium mt-0.5">Optical Launch Monitor & 3D Sim</p>
       </div>
-    </div>
-
-    <!-- Primary Capture Buttons (Always Visible at Top) -->
-    <div class="flex items-center gap-1.5">
-      <button id="btnLiveRadar" class="px-2.5 py-1.5 rounded-lg bg-blue-600 hover:bg-blue-500 active:scale-95 text-white font-bold text-xs flex items-center gap-1.5 shadow-md shadow-blue-950/50 transition">
-        <svg class="w-3.5 h-3.5 shrink-0" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24">
-          <path stroke-linecap="round" stroke-linejoin="round" d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" />
-        </svg>
-        <span id="btnLiveText">Live Radar</span>
-      </button>
-
-      <label class="px-2.5 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 active:scale-95 border border-slate-700 text-slate-100 font-bold text-xs flex items-center gap-1.5 cursor-pointer transition">
-        <svg class="w-3.5 h-3.5 shrink-0 text-cyan-400" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24">
-          <path stroke-linecap="round" stroke-linejoin="round" d="M7 4v16M17 4v16M3 8h4m10 0h4M3 12h18M3 16h4m10 0h4M4 20h16a1 1 0 001-1V5a1 1 0 00-1-1H4a1 1 0 00-1 1v14a1 1 0 001 1z" />
-        </svg>
-        <span>Load Video</span>
-        <input id="videoFileInput" type="file" accept="video/*" class="hidden" />
-      </label>
     </div>
 
     <div class="flex items-center gap-1.5">
       <!-- PWA Install Button (Shown when install prompt is available or for Android instructions) -->
-      <button id="btnInstallApp" class="hidden px-2 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 active:scale-95 text-[11px] font-bold text-white transition flex items-center gap-1 shadow">
+      <button id="btnInstallApp" class="hidden px-2.5 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 active:scale-95 text-[11px] font-bold text-white transition flex items-center gap-1 shadow">
         <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
           <path stroke-linecap="round" stroke-linejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
         </svg>
-        <span class="hidden sm:inline">Install</span>
+        Install App
       </button>
 
       <!-- Sound Toggle -->
-      <button id="btnAudioToggle" class="p-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 transition" title="Toggle Audio">
+      <button id="btnAudioToggle" class="p-2 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 transition" title="Toggle Audio">
         <svg id="iconAudioOn" class="w-4 h-4 text-emerald-400" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
           <path stroke-linecap="round" stroke-linejoin="round" d="M15.536 8.464a5 5 0 010 7.072m2.828-9.9a9 9 0 010 12.728M5.586 15H4a1 1 0 01-1-1v-4a1 1 0 011-1h1.586l4.707-4.707C10.923 3.663 12 4.109 12 5v14c0 .891-1.077 1.337-1.707.707L5.586 15z" />
         </svg>
@@ -133,7 +112,7 @@
       </button>
 
       <!-- Shot History Drawer Toggle -->
-      <button id="btnHistoryToggle" class="px-2 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 border border-slate-700 text-xs font-semibold text-slate-200 flex items-center gap-1 transition">
+      <button id="btnHistoryToggle" class="px-2.5 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 border border-slate-700 text-xs font-semibold text-slate-200 flex items-center gap-1.5 transition">
         <span>Log</span>
         <span id="shotCountBadge" class="px-1.5 py-0.5 text-[10px] font-mono font-bold rounded bg-cyan-500/20 text-cyan-300">0</span>
       </button>
@@ -141,10 +120,28 @@
   </header>
 
   <!-- MAIN VIEWPORT: SPLIT OPTICAL TRACKER + 3D DRIVING RANGE -->
-  <main class="relative flex-1 min-h-0 flex flex-col md:flex-row overflow-hidden">
+  <main class="relative flex-1 flex flex-col md:flex-row overflow-hidden">
 
     <!-- LEFT / TOP PANEL: OPTICAL CAMERA & SLOW-MO VIDEO ANALYZER -->
-    <section class="relative w-full md:w-1/2 h-[45%] md:h-full min-h-0 bg-black border-b md:border-b-0 md:border-r border-slate-800 flex items-center justify-center overflow-hidden">
+    <section class="relative w-full md:w-1/2 h-[46%] md:h-full bg-black border-b md:border-b-0 md:border-r border-slate-800 flex items-center justify-center overflow-hidden">
+      <video id="videoEl" class="absolute inset-0 w-full h-full object-contain" playsinline muted></video>
+      <canvas id="trackerCanvas" class="absolute inset-0 w-full h-full z-10 cursor-crosshair"></canvas>
+
+      <!-- Mode & Status Pill -->
+      <div class="absolute top-2.5 left-2.5 right-2.5 flex items-center justify-between z-20 pointer-events-none">
+        <span id="statusBadge" class="px-2.5 py-1 rounded-full text-[10px] font-bold tracking-wider uppercase bg-slate-900/90 text-cyan-400 border border-cyan-500/30 shadow">
+          STANDBY
+        </span>
+        <span id="scaleBadge" class="px-2.5 py-1 rounded-full text-[10px] font-mono font-semibold bg-slate-900/90 text-slate-300 border border-slate-700">
+          Scale: 220 px/m
+        </span>
+      </div>
+
+      <!-- Video Scrubber Overlay (Visible only when video is loaded) -->
+      <div id="videoScrubberBar" class="hidden absolute bottom-11 left-3 right-3 z-20 glass-panel rounded-xl px-3 py-1.5 flex items-center gap-2">
+        <button id="btnStepBack" class="px-2 py-1 rounded bg-slate-800 hover:bg-slate-700 text-xs font-mono font-bold text-slate-200 active:scale-95">-1F</button>
+        <input id="videoSlider" type="range" min="0" max="100" step="0.01" value="0" class="flex-1 accent-cyan-400 h-1.5 bg-slate-700 rounded-lg cursor-pointer" />
+        <button id="btnStepFwd" class="px-2 py-1 rounded bg-slate-800 hover:bg-slate-700 text-xs font-mono font-bold text-slate-200 active:scale-95">+1F</button>
       </div>
 
       <!-- Guidance Banner -->
@@ -154,7 +151,7 @@
     </section>
 
     <!-- RIGHT / BOTTOM PANEL: 3D PERSPECTIVE DRIVING RANGE & TELEMETRY HUD -->
-    <section class="relative w-full md:w-1/2 h-[55%] md:h-full min-h-0 bg-slate-950 flex flex-col overflow-hidden">
+    <section class="relative w-full md:w-1/2 h-[54%] md:h-full bg-slate-950 flex flex-col overflow-hidden">
       
       <!-- 4-Card Telemetry HUD -->
       <div class="absolute top-2.5 left-2.5 right-2.5 z-20 grid grid-cols-4 gap-1.5 pointer-events-none">
@@ -298,54 +295,54 @@
           <option value="9 Iron" data-len="36.0" data-spin="8400" data-speed="104" data-launch="21.5">9 Iron (36.0")</option>
           <option value="PW" data-len="35.5" data-spin="9200" data-speed="96" data-launch="25.0">PW (35.5")</option>
           <option value="SW" data-len="35.0" data-spin="10200" data-speed="82" data-launch="30.0">SW (35.0")</option>
-  <!-- BOTTOM CONTROL DOCK (CALIBRATION, CLUB PRESETS & SIMULATION) -->
-  <footer class="bg-slate-900 border-t border-slate-800 px-3 py-2 z-30 shrink-0 space-y-1.5">
-    
-    <!-- Row 1: Club Preset Selector & Calibration Parameters -->
-    <div class="flex items-center justify-between gap-2 overflow-x-auto pb-0.5">
-      <div class="flex items-center gap-1.5 shrink-0">
-        <label for="clubSelect" class="text-[11px] font-semibold text-slate-400">Club:</label>
-        <select id="clubSelect" class="bg-slate-800 border border-slate-700 text-white text-xs font-bold rounded-lg px-2 py-1 focus:outline-none focus:border-cyan-500">
-          <option value="Driver" data-len="45.5" data-spin="2400" data-speed="152" data-launch="12.5">Driver (45.5")</option>
-          <option value="3 Wood" data-len="43.0" data-spin="3400" data-speed="142" data-launch="13.5">3 Wood (43.0")</option>
-          <option value="5 Iron" data-len="38.0" data-spin="5200" data-speed="126" data-launch="15.0">5 Iron (38.0")</option>
-          <option value="7 Iron" data-len="37.0" data-spin="6800" data-speed="116" data-launch="17.5" selected>7 Iron (37.0")</option>
-          <option value="9 Iron" data-len="36.0" data-spin="8400" data-speed="104" data-launch="21.5">9 Iron (36.0")</option>
-          <option value="PW" data-len="35.5" data-spin="9200" data-speed="96" data-launch="25.0">PW (35.5")</option>
-          <option value="SW" data-len="35.0" data-spin="10200" data-speed="82" data-launch="30.0">SW (35.0")</option>
         </select>
       </div>
 
-      <div class="flex items-center gap-1.5 shrink-0 text-[11px] text-slate-300">
+      <div class="flex items-center gap-2 shrink-0 text-[11px] text-slate-300">
         <div class="flex items-center gap-1 bg-slate-800/80 border border-slate-700/80 rounded-lg px-2 py-1">
           <span class="text-slate-400">FPS:</span>
-          <input id="inputFps" type="number" value="120" min="30" max="960" class="w-9 bg-transparent font-mono font-bold text-white text-center focus:outline-none" />
+          <input id="inputFps" type="number" value="120" min="30" max="960" class="w-10 bg-transparent font-mono font-bold text-white text-center focus:outline-none" />
         </div>
         <div class="flex items-center gap-1 bg-slate-800/80 border border-slate-700/80 rounded-lg px-2 py-1">
           <span class="text-slate-400">Len(in):</span>
-          <input id="inputClubLen" type="number" value="37.0" step="0.5" min="20" max="50" class="w-9 bg-transparent font-mono font-bold text-cyan-300 text-center focus:outline-none" />
+          <input id="inputClubLen" type="number" value="37.0" step="0.5" min="20" max="50" class="w-10 bg-transparent font-mono font-bold text-cyan-300 text-center focus:outline-none" />
         </div>
         <div class="flex items-center gap-1 bg-slate-800/80 border border-slate-700/80 rounded-lg px-2 py-1">
           <span class="text-slate-400">Spin:</span>
-          <input id="inputSpin" type="number" value="6800" step="100" min="1000" max="12000" class="w-11 bg-transparent font-mono font-bold text-emerald-300 text-center focus:outline-none" />
+          <input id="inputSpin" type="number" value="6800" step="100" min="1000" max="12000" class="w-12 bg-transparent font-mono font-bold text-emerald-300 text-center focus:outline-none" />
         </div>
       </div>
     </div>
 
-    <!-- Row 2: Scale Calibration & Simulation Test Buttons -->
-    <div class="grid grid-cols-2 gap-2">
-      <button id="btnCalibrate" class="py-2 px-3 rounded-xl bg-slate-800 hover:bg-slate-700 active:scale-95 border border-slate-700 text-slate-100 font-bold text-xs flex items-center justify-center gap-1.5 transition">
+    <!-- Row 2: Primary Touch Action Buttons -->
+    <div class="grid grid-cols-4 gap-2">
+      <button id="btnLiveRadar" class="py-2.5 px-2 rounded-xl bg-blue-600 hover:bg-blue-500 active:scale-95 text-white font-bold text-xs flex items-center justify-center gap-1.5 shadow-lg shadow-blue-950/50 transition">
+        <svg class="w-4 h-4 shrink-0" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" />
+        </svg>
+        <span id="btnLiveText">Live Radar</span>
+      </button>
+
+      <label class="py-2.5 px-2 rounded-xl bg-slate-800 hover:bg-slate-700 active:scale-95 border border-slate-700 text-slate-100 font-bold text-xs flex items-center justify-center gap-1.5 cursor-pointer transition">
+        <svg class="w-4 h-4 shrink-0 text-cyan-400" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M7 4v16M17 4v16M3 8h4m10 0h4M3 12h18M3 16h4m10 0h4M4 20h16a1 1 0 001-1V5a1 1 0 00-1-1H4a1 1 0 00-1 1v14a1 1 0 001 1z" />
+        </svg>
+        <span>Load Video</span>
+        <input id="videoFileInput" type="file" accept="video/*" class="hidden" />
+      </label>
+
+      <button id="btnCalibrate" class="py-2.5 px-2 rounded-xl bg-slate-800 hover:bg-slate-700 active:scale-95 border border-slate-700 text-slate-100 font-bold text-xs flex items-center justify-center gap-1.5 transition">
         <svg class="w-4 h-4 shrink-0 text-amber-400" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24">
           <path stroke-linecap="round" stroke-linejoin="round" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
         </svg>
-        <span>Set Scale (Club Length)</span>
+        <span>Set Scale</span>
       </button>
 
-      <button id="btnTestShot" class="py-2 px-3 rounded-xl bg-emerald-600 hover:bg-emerald-500 active:scale-95 text-white font-bold text-xs flex items-center justify-center gap-1.5 shadow-lg shadow-emerald-950/50 transition">
+      <button id="btnTestShot" class="py-2.5 px-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 active:scale-95 text-white font-bold text-xs flex items-center justify-center gap-1.5 shadow-lg shadow-emerald-950/50 transition">
         <svg class="w-4 h-4 shrink-0" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24">
           <path stroke-linecap="round" stroke-linejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z" />
         </svg>
-        <span>Test Sim Shot</span>
+        <span>Test Shot</span>
       </button>
     </div>
   </footer>
