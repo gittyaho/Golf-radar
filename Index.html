@@ -1,0 +1,1341 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <meta name="theme-color" content="#0f172a" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="description" content="Free mobile phone-based golf launch monitor and 3D driving range simulator." />
+  <title>Pocket Launch Monitor & 3D Range</title>
+  
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Google Fonts: Inter & JetBrains Mono for telemetry numbers -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@600;700;800&display=swap" rel="stylesheet">
+  <!-- Tone.js for procedural golf impact & ball flight audio feedback -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/tone/14.8.49/Tone.js"></script>
+
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['Inter', 'sans-serif'],
+            mono: ['JetBrains Mono', 'monospace'],
+          }
+        }
+      }
+    }
+  </script>
+
+  <style>
+    * {
+      box-sizing: border-box;
+      -webkit-tap-highlight-color: transparent;
+      user-select: none;
+    }
+    html, body {
+      height: 100vh;
+      height: 100dvh;
+      width: 100%;
+      margin: 0;
+      padding: 0;
+      padding-top: env(safe-area-inset-top);
+      padding-bottom: env(safe-area-inset-bottom);
+      overflow: hidden;
+      background-color: #090d16;
+      color: #f8fafc;
+    }
+    /* Custom scrollbar for shot history drawer */
+    ::-webkit-scrollbar {
+      width: 5px;
+      height: 5px;
+    }
+    ::-webkit-scrollbar-track {
+      background: #0f172a;
+    }
+    ::-webkit-scrollbar-thumb {
+      background: #334155;
+      border-radius: 4px;
+    }
+    .glass-panel {
+      background: rgba(15, 23, 42, 0.85);
+      backdrop-filter: blur(10px);
+      -webkit-backdrop-filter: blur(10px);
+      border: 1px solid rgba(51, 65, 85, 0.7);
+    }
+    @keyframes pulse-ring {
+      0% { transform: scale(0.95); opacity: 0.9; }
+      50% { transform: scale(1.05); opacity: 0.4; }
+      100% { transform: scale(0.95); opacity: 0.9; }
+    }
+    .radar-armed-pulse {
+      animation: pulse-ring 1.8s infinite ease-in-out;
+    }
+  </style>
+</head>
+<body class="flex flex-col h-[100dvh] max-h-[100dvh] w-screen overflow-hidden select-none">
+
+  <!-- TOP HEADER BAR WITH PRIMARY CAPTURE ACTIONS -->
+  <header class="flex flex-wrap items-center justify-between gap-2 px-3 py-2 bg-slate-900/95 border-b border-slate-800 z-30 shrink-0">
+    <div class="flex items-center gap-2">
+      <div class="w-8 h-8 rounded-xl bg-gradient-to-br from-emerald-500 to-cyan-600 flex items-center justify-center shadow-lg shadow-emerald-950/50 shrink-0">
+        <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24">
+          <circle cx="12" cy="12" r="9" />
+          <path stroke-linecap="round" d="M9 10h.01M15 10h.01M12 14h.01M9 16h.01M15 16h.01" />
+        </svg>
+      </div>
+      <div>
+        <h1 class="text-xs sm:text-sm font-extrabold tracking-tight text-white leading-none">POCKET RADAR</h1>
+        <p class="text-[9px] sm:text-[10px] text-slate-400 font-medium mt-0.5 hidden sm:block">Optical Launch Monitor & 3D Sim</p>
+      </div>
+    </div>
+
+    <!-- Primary Capture Buttons (Always Visible at Top) -->
+    <div class="flex items-center gap-1.5">
+      <button id="btnLiveRadar" class="px-2.5 py-1.5 rounded-lg bg-blue-600 hover:bg-blue-500 active:scale-95 text-white font-bold text-xs flex items-center gap-1.5 shadow-md shadow-blue-950/50 transition">
+        <svg class="w-3.5 h-3.5 shrink-0" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" />
+        </svg>
+        <span id="btnLiveText">Live Radar</span>
+      </button>
+
+      <label class="px-2.5 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 active:scale-95 border border-slate-700 text-slate-100 font-bold text-xs flex items-center gap-1.5 cursor-pointer transition">
+        <svg class="w-3.5 h-3.5 shrink-0 text-cyan-400" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M7 4v16M17 4v16M3 8h4m10 0h4M3 12h18M3 16h4m10 0h4M4 20h16a1 1 0 001-1V5a1 1 0 00-1-1H4a1 1 0 00-1 1v14a1 1 0 001 1z" />
+        </svg>
+        <span>Load Video</span>
+        <input id="videoFileInput" type="file" accept="video/*" class="hidden" />
+      </label>
+    </div>
+
+    <div class="flex items-center gap-1.5">
+      <!-- PWA Install Button (Shown when install prompt is available or for Android instructions) -->
+      <button id="btnInstallApp" class="hidden px-2 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 active:scale-95 text-[11px] font-bold text-white transition flex items-center gap-1 shadow">
+        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+        </svg>
+        <span class="hidden sm:inline">Install</span>
+      </button>
+
+      <!-- Sound Toggle -->
+      <button id="btnAudioToggle" class="p-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 transition" title="Toggle Audio">
+        <svg id="iconAudioOn" class="w-4 h-4 text-emerald-400" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M15.536 8.464a5 5 0 010 7.072m2.828-9.9a9 9 0 010 12.728M5.586 15H4a1 1 0 01-1-1v-4a1 1 0 011-1h1.586l4.707-4.707C10.923 3.663 12 4.109 12 5v14c0 .891-1.077 1.337-1.707.707L5.586 15z" />
+        </svg>
+        <svg id="iconAudioOff" class="w-4 h-4 text-slate-500 hidden" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M5.586 15H4a1 1 0 01-1-1v-4a1 1 0 011-1h1.586l4.707-4.707C10.923 3.663 12 4.109 12 5v14c0 .891-1.077 1.337-1.707.707L5.586 15zM17 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2" />
+        </svg>
+      </button>
+
+      <!-- Shot History Drawer Toggle -->
+      <button id="btnHistoryToggle" class="px-2 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 border border-slate-700 text-xs font-semibold text-slate-200 flex items-center gap-1 transition">
+        <span>Log</span>
+        <span id="shotCountBadge" class="px-1.5 py-0.5 text-[10px] font-mono font-bold rounded bg-cyan-500/20 text-cyan-300">0</span>
+      </button>
+    </div>
+  </header>
+
+  <!-- MAIN VIEWPORT: SPLIT OPTICAL TRACKER + 3D DRIVING RANGE -->
+  <main class="relative flex-1 min-h-0 flex flex-col md:flex-row overflow-hidden">
+
+    <!-- LEFT / TOP PANEL: OPTICAL CAMERA & SLOW-MO VIDEO ANALYZER -->
+    <section class="relative w-full md:w-1/2 h-[45%] md:h-full min-h-0 bg-black border-b md:border-b-0 md:border-r border-slate-800 flex items-center justify-center overflow-hidden">
+      </div>
+
+      <!-- Guidance Banner -->
+      <div id="guidanceBanner" class="absolute bottom-2.5 left-2.5 right-2.5 z-20 glass-panel rounded-xl px-3 py-1.5 text-center text-[11px] font-medium text-amber-300 shadow-lg pointer-events-none">
+        Tap <strong>Live Radar</strong> for camera tracking, <strong>Load Video</strong> for slow-mo, or <strong>Test Shot</strong>.
+      </div>
+    </section>
+
+    <!-- RIGHT / BOTTOM PANEL: 3D PERSPECTIVE DRIVING RANGE & TELEMETRY HUD -->
+    <section class="relative w-full md:w-1/2 h-[55%] md:h-full min-h-0 bg-slate-950 flex flex-col overflow-hidden">
+      
+      <!-- 4-Card Telemetry HUD -->
+      <div class="absolute top-2.5 left-2.5 right-2.5 z-20 grid grid-cols-4 gap-1.5 pointer-events-none">
+        <div class="glass-panel rounded-xl p-2 text-center shadow-lg">
+          <div class="text-[9px] font-bold uppercase tracking-wider text-slate-400">Ball Speed</div>
+          <div id="hudSpeed" class="font-mono text-base sm:text-lg font-extrabold text-emerald-400 leading-tight mt-0.5">--</div>
+          <div class="text-[9px] text-slate-500 font-semibold">MPH</div>
+        </div>
+        <div class="glass-panel rounded-xl p-2 text-center shadow-lg">
+          <div class="text-[9px] font-bold uppercase tracking-wider text-slate-400">Launch</div>
+          <div id="hudLaunch" class="font-mono text-base sm:text-lg font-extrabold text-cyan-400 leading-tight mt-0.5">--</div>
+          <div class="text-[9px] text-slate-500 font-semibold">DEG</div>
+        </div>
+        <div class="glass-panel rounded-xl p-2 text-center shadow-lg">
+          <div class="text-[9px] font-bold uppercase tracking-wider text-slate-400">Carry</div>
+          <div id="hudCarry" class="font-mono text-base sm:text-lg font-extrabold text-amber-400 leading-tight mt-0.5">--</div>
+          <div class="text-[9px] text-slate-500 font-semibold">YARDS</div>
+        </div>
+        <div class="glass-panel rounded-xl p-2 text-center shadow-lg">
+          <div class="text-[9px] font-bold uppercase tracking-wider text-slate-400">Offline</div>
+          <div id="hudOffline" class="font-mono text-base sm:text-lg font-extrabold text-purple-400 leading-tight mt-0.5">--</div>
+          <div class="text-[9px] text-slate-500 font-semibold">YARDS</div>
+        </div>
+      </div>
+
+      <!-- Secondary Flight Stats Pill (Apex & Total Distance) -->
+      <div class="absolute top-[74px] left-2.5 right-2.5 z-20 flex justify-between items-center px-2 pointer-events-none">
+        <div class="glass-panel rounded-lg px-2.5 py-1 text-[10px] font-mono text-slate-300 flex items-center gap-3">
+          <span>Apex: <strong id="hudApex" class="text-white">-- ft</strong></span>
+          <span>Total: <strong id="hudTotal" class="text-emerald-300">-- yds</strong></span>
+          <span>Spin: <strong id="hudSpinDisplay" class="text-cyan-300">2700 rpm</strong></span>
+        </div>
+        <button id="btnClearTracers" class="pointer-events-auto px-2 py-1 rounded-lg bg-slate-900/85 hover:bg-slate-800 border border-slate-700 text-[10px] font-semibold text-slate-300 transition">
+          Clear Range
+        </button>
+      </div>
+
+      <!-- 3D Perspective Driving Range Canvas -->
+      <canvas id="rangeCanvas" class="w-full h-full block"></canvas>
+    </section>
+
+    <!-- SLIDE-OVER SESSION HISTORY & CSV EXPORT DRAWER -->
+    <aside id="historyDrawer" class="hidden absolute inset-0 z-40 bg-slate-950/95 backdrop-blur-md flex flex-col p-4">
+      <div class="flex items-center justify-between pb-3 border-b border-slate-800">
+        <div>
+          <h2 class="text-base font-extrabold text-white">Session Shot Log</h2>
+          <p class="text-xs text-slate-400">Saved locally on your device</p>
+        </div>
+        <div class="flex items-center gap-2">
+          <button id="btnExportCsv" class="px-3 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-xs font-bold text-white flex items-center gap-1.5 transition">
+            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+            </svg>
+            Export CSV
+          </button>
+          <button id="btnClearHistory" class="px-2.5 py-1.5 rounded-lg bg-rose-950/80 hover:bg-rose-900 border border-rose-800 text-xs font-semibold text-rose-300 transition">
+            Reset
+          </button>
+          <button id="btnCloseHistory" class="p-1.5 rounded-lg bg-slate-800 text-slate-300 hover:text-white">
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </button>
+        </div>
+      </div>
+
+      <!-- Session Summary Averages -->
+      <div id="sessionSummary" class="grid grid-cols-4 gap-2 my-3">
+        <div class="bg-slate-900 border border-slate-800 rounded-xl p-2.5 text-center">
+          <div class="text-[10px] text-slate-400 uppercase">Shots</div>
+          <div id="avgCount" class="font-mono text-base font-bold text-white mt-0.5">0</div>
+        </div>
+        <div class="bg-slate-900 border border-slate-800 rounded-xl p-2.5 text-center">
+          <div class="text-[10px] text-slate-400 uppercase">Avg Speed</div>
+          <div id="avgSpeed" class="font-mono text-base font-bold text-emerald-400 mt-0.5">--</div>
+        </div>
+        <div class="bg-slate-900 border border-slate-800 rounded-xl p-2.5 text-center">
+          <div class="text-[10px] text-slate-400 uppercase">Avg Launch</div>
+          <div id="avgLaunch" class="font-mono text-base font-bold text-cyan-400 mt-0.5">--</div>
+        </div>
+        <div class="bg-slate-900 border border-slate-800 rounded-xl p-2.5 text-center">
+          <div class="text-[10px] text-slate-400 uppercase">Avg Carry</div>
+          <div id="avgCarry" class="font-mono text-base font-bold text-amber-400 mt-0.5">--</div>
+        </div>
+      </div>
+
+      <!-- Shot Table -->
+      <div class="flex-1 overflow-auto rounded-xl border border-slate-800 bg-slate-900/60">
+        <table class="w-full text-left border-collapse">
+          <thead class="bg-slate-900 sticky top-0 text-[10px] uppercase text-slate-400 border-b border-slate-800">
+            <tr>
+              <th class="py-2.5 px-3">#</th>
+              <th class="py-2.5 px-2">Club</th>
+              <th class="py-2.5 px-2">Speed</th>
+              <th class="py-2.5 px-2">Launch</th>
+              <th class="py-2.5 px-2">Carry</th>
+              <th class="py-2.5 px-3">Offline</th>
+            </tr>
+          </thead>
+          <tbody id="shotTableBody" class="divide-y divide-slate-800/70 text-xs font-mono">
+            <tr>
+              <td colspan="6" class="py-8 text-center text-slate-500 font-sans">No shots recorded yet. Hit a shot or tap "Test Shot".</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </aside>
+
+    <!-- MODAL FOR PWA INSTALLATION HELP ON ANDROID -->
+    <div id="installModal" class="hidden fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
+      <div class="bg-slate-900 border border-slate-700 rounded-2xl max-w-sm w-full p-5 shadow-2xl">
+        <h3 class="text-base font-bold text-white mb-2">Install Pocket Radar on Android</h3>
+        <p class="text-xs text-slate-300 leading-relaxed mb-3">
+          To install this app to your Android home screen for full-screen offline use:
+        </p>
+        <ol class="text-xs text-slate-300 space-y-2 list-decimal list-inside mb-4 bg-slate-950 p-3 rounded-xl border border-slate-800">
+          <li>Open this page in <strong>Google Chrome</strong> over HTTPS or localhost.</li>
+          <li>Tap the <strong>three-dot menu (⋮)</strong> in the top-right corner of Chrome.</li>
+          <li>Tap <strong>"Add to Home screen"</strong> or <strong>"Install app"</strong>.</li>
+        </ol>
+        <button id="btnCloseInstallModal" class="w-full py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-xs font-bold text-white">
+          Got It
+        </button>
+      </div>
+    </div>
+
+  </main>
+
+  <!-- BOTTOM CONTROL DOCK -->
+  <footer class="bg-slate-900 border-t border-slate-800 px-3 py-2.5 z-30 shrink-0 space-y-2">
+    
+    <!-- Row 1: Club Preset Selector & Calibration Parameters -->
+    <div class="flex items-center justify-between gap-2 overflow-x-auto pb-0.5">
+      <div class="flex items-center gap-1.5 shrink-0">
+        <label for="clubSelect" class="text-[11px] font-semibold text-slate-400">Club:</label>
+        <select id="clubSelect" class="bg-slate-800 border border-slate-700 text-white text-xs font-bold rounded-lg px-2 py-1.5 focus:outline-none focus:border-cyan-500">
+          <option value="Driver" data-len="45.5" data-spin="2400" data-speed="152" data-launch="12.5">Driver (45.5")</option>
+          <option value="3 Wood" data-len="43.0" data-spin="3400" data-speed="142" data-launch="13.5">3 Wood (43.0")</option>
+          <option value="5 Iron" data-len="38.0" data-spin="5200" data-speed="126" data-launch="15.0">5 Iron (38.0")</option>
+          <option value="7 Iron" data-len="37.0" data-spin="6800" data-speed="116" data-launch="17.5" selected>7 Iron (37.0")</option>
+          <option value="9 Iron" data-len="36.0" data-spin="8400" data-speed="104" data-launch="21.5">9 Iron (36.0")</option>
+          <option value="PW" data-len="35.5" data-spin="9200" data-speed="96" data-launch="25.0">PW (35.5")</option>
+          <option value="SW" data-len="35.0" data-spin="10200" data-speed="82" data-launch="30.0">SW (35.0")</option>
+  <!-- BOTTOM CONTROL DOCK (CALIBRATION, CLUB PRESETS & SIMULATION) -->
+  <footer class="bg-slate-900 border-t border-slate-800 px-3 py-2 z-30 shrink-0 space-y-1.5">
+    
+    <!-- Row 1: Club Preset Selector & Calibration Parameters -->
+    <div class="flex items-center justify-between gap-2 overflow-x-auto pb-0.5">
+      <div class="flex items-center gap-1.5 shrink-0">
+        <label for="clubSelect" class="text-[11px] font-semibold text-slate-400">Club:</label>
+        <select id="clubSelect" class="bg-slate-800 border border-slate-700 text-white text-xs font-bold rounded-lg px-2 py-1 focus:outline-none focus:border-cyan-500">
+          <option value="Driver" data-len="45.5" data-spin="2400" data-speed="152" data-launch="12.5">Driver (45.5")</option>
+          <option value="3 Wood" data-len="43.0" data-spin="3400" data-speed="142" data-launch="13.5">3 Wood (43.0")</option>
+          <option value="5 Iron" data-len="38.0" data-spin="5200" data-speed="126" data-launch="15.0">5 Iron (38.0")</option>
+          <option value="7 Iron" data-len="37.0" data-spin="6800" data-speed="116" data-launch="17.5" selected>7 Iron (37.0")</option>
+          <option value="9 Iron" data-len="36.0" data-spin="8400" data-speed="104" data-launch="21.5">9 Iron (36.0")</option>
+          <option value="PW" data-len="35.5" data-spin="9200" data-speed="96" data-launch="25.0">PW (35.5")</option>
+          <option value="SW" data-len="35.0" data-spin="10200" data-speed="82" data-launch="30.0">SW (35.0")</option>
+        </select>
+      </div>
+
+      <div class="flex items-center gap-1.5 shrink-0 text-[11px] text-slate-300">
+        <div class="flex items-center gap-1 bg-slate-800/80 border border-slate-700/80 rounded-lg px-2 py-1">
+          <span class="text-slate-400">FPS:</span>
+          <input id="inputFps" type="number" value="120" min="30" max="960" class="w-9 bg-transparent font-mono font-bold text-white text-center focus:outline-none" />
+        </div>
+        <div class="flex items-center gap-1 bg-slate-800/80 border border-slate-700/80 rounded-lg px-2 py-1">
+          <span class="text-slate-400">Len(in):</span>
+          <input id="inputClubLen" type="number" value="37.0" step="0.5" min="20" max="50" class="w-9 bg-transparent font-mono font-bold text-cyan-300 text-center focus:outline-none" />
+        </div>
+        <div class="flex items-center gap-1 bg-slate-800/80 border border-slate-700/80 rounded-lg px-2 py-1">
+          <span class="text-slate-400">Spin:</span>
+          <input id="inputSpin" type="number" value="6800" step="100" min="1000" max="12000" class="w-11 bg-transparent font-mono font-bold text-emerald-300 text-center focus:outline-none" />
+        </div>
+      </div>
+    </div>
+
+    <!-- Row 2: Scale Calibration & Simulation Test Buttons -->
+    <div class="grid grid-cols-2 gap-2">
+      <button id="btnCalibrate" class="py-2 px-3 rounded-xl bg-slate-800 hover:bg-slate-700 active:scale-95 border border-slate-700 text-slate-100 font-bold text-xs flex items-center justify-center gap-1.5 transition">
+        <svg class="w-4 h-4 shrink-0 text-amber-400" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
+        </svg>
+        <span>Set Scale (Club Length)</span>
+      </button>
+
+      <button id="btnTestShot" class="py-2 px-3 rounded-xl bg-emerald-600 hover:bg-emerald-500 active:scale-95 text-white font-bold text-xs flex items-center justify-center gap-1.5 shadow-lg shadow-emerald-950/50 transition">
+        <svg class="w-4 h-4 shrink-0" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z" />
+        </svg>
+        <span>Test Sim Shot</span>
+      </button>
+    </div>
+  </footer>
+
+  <!-- PWA MANIFEST & SERVICE WORKER BOOTSTRAP + MAIN LAUNCH MONITOR APPLICATION -->
+  <script>
+    // =========================================================================
+    // 1. DYNAMIC PWA MANIFEST & INLINE SERVICE WORKER REGISTRATION
+    // =========================================================================
+    (function setupPWA() {
+      // Generate SVG app icon as data URI for manifest
+      const iconSvg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><rect width="512" height="512" rx="112" fill="#0f172a"/><circle cx="256" cy="256" r="160" fill="#10b981"/><circle cx="256" cy="256" r="130" fill="#f8fafc"/><circle cx="215" cy="215" r="12" fill="#cbd5e1"/><circle cx="265" cy="205" r="12" fill="#cbd5e1"/><circle cx="305" cy="235" r="12" fill="#cbd5e1"/><circle cx="235" cy="265" r="12" fill="#cbd5e1"/><circle cx="285" cy="285" r="12" fill="#cbd5e1"/></svg>`;
+      const iconUrl = 'data:image/svg+xml;base64,' + btoa(iconSvg);
+
+      const manifest = {
+        name: 'Pocket Radar Golf Launch Monitor',
+        short_name: 'Pocket Radar',
+        description: 'Phone-based optical golf launch monitor and 3D driving range simulator.',
+        start_url: './',
+        display: 'standalone',
+        orientation: 'any',
+        background_color: '#090d16',
+        theme_color: '#0f172a',
+        icons: [
+          { src: iconUrl, sizes: '192x192', type: 'image/svg+xml', purpose: 'any maskable' },
+          { src: iconUrl, sizes: '512x512', type: 'image/svg+xml', purpose: 'any maskable' }
+        ]
+      };
+
+      const manifestBlob = new Blob([JSON.stringify(manifest)], { type: 'application/json' });
+      const manifestLink = document.createElement('link');
+      manifestLink.rel = 'manifest';
+      manifestLink.href = URL.createObjectURL(manifestBlob);
+      document.head.appendChild(manifestLink);
+
+      // Register minimal offline caching Service Worker if supported over HTTPS/localhost
+      if ('serviceWorker' in navigator && (location.protocol === 'https:' || location.hostname === 'localhost')) {
+        const swCode = `
+          const CACHE_NAME = 'pocket-golf-radar-v1';
+          self.addEventListener('install', (e) => {
+            self.skipWaiting();
+          });
+          self.addEventListener('activate', (e) => {
+            e.waitUntil(clients.claim());
+          });
+          self.addEventListener('fetch', (e) => {
+            e.respondWith(
+              fetch(e.request).catch(() => caches.match(e.request))
+            );
+          });
+        `;
+        const swBlob = new Blob([swCode], { type: 'application/javascript' });
+        navigator.serviceWorker.register(URL.createObjectURL(swBlob)).catch(() => {});
+      }
+
+      // Handle Android Chrome beforeinstallprompt event
+      let deferredPrompt = null;
+      const btnInstall = document.getElementById('btnInstallApp');
+      const installModal = document.getElementById('installModal');
+
+      window.addEventListener('beforeinstallprompt', (e) => {
+        e.preventDefault();
+        deferredPrompt = e;
+        btnInstall.classList.remove('hidden');
+      });
+
+      // Also show install helper button on Android mobile browsers
+      if (/Android/i.test(navigator.userAgent)) {
+        btnInstall.classList.remove('hidden');
+      }
+
+      btnInstall.addEventListener('click', async () => {
+        if (deferredPrompt) {
+          deferredPrompt.prompt();
+          const { outcome } = await deferredPrompt.userChoice;
+          if (outcome === 'accepted') {
+            btnInstall.classList.add('hidden');
+          }
+          deferredPrompt = null;
+        } else {
+          installModal.classList.remove('hidden');
+        }
+      });
+
+      document.getElementById('btnCloseInstallModal').addEventListener('click', () => {
+        installModal.classList.add('hidden');
+      });
+    })();
+
+    // =========================================================================
+    // 2. MAIN LAUNCH MONITOR & 3D RANGE ENGINE
+    // =========================================================================
+    (() => {
+      // DOM Elements
+      const video = document.getElementById('videoEl');
+      const tCanvas = document.getElementById('trackerCanvas');
+      const tCtx = tCanvas.getContext('2d', { willReadFrequently: true });
+      const rCanvas = document.getElementById('rangeCanvas');
+      const rCtx = rCanvas.getContext('2d');
+
+      const statusBadge = document.getElementById('statusBadge');
+      const scaleBadge = document.getElementById('scaleBadge');
+      const guidanceBanner = document.getElementById('guidanceBanner');
+      const videoScrubberBar = document.getElementById('videoScrubberBar');
+      const videoSlider = document.getElementById('videoSlider');
+
+      // Inputs & Selects
+      const clubSelect = document.getElementById('clubSelect');
+      const inputFps = document.getElementById('inputFps');
+      const inputClubLen = document.getElementById('inputClubLen');
+      const inputSpin = document.getElementById('inputSpin');
+
+      // State Variables
+      let pixelsPerMeter = 220; // Default calibrated scale (~220 px/m at ~6ft camera distance)
+      let isLiveRadar = false;
+      let liveStream = null;
+      let prevFrameData = null;
+      let liveDetectedPoints = [];
+      let cooldownUntil = 0;
+
+      let isCalibrating = false;
+      let calibrationPoints = [];
+      let manualBallPoints = [];
+
+      let audioEnabled = true;
+      let shotHistory = [];
+      let activeFlight = null;
+
+      // Load saved shot history from localStorage
+      try {
+        const saved = localStorage.getItem('pocket_golf_shots_v1');
+        if (saved) {
+          shotHistory = JSON.parse(saved);
+        }
+      } catch (e) {
+        shotHistory = [];
+      }
+
+      // -----------------------------------------------------------------------
+      // AUDIO SYNTHESIZER (Tone.js procedural club impact sound)
+      // -----------------------------------------------------------------------
+      let impactSynth = null;
+      function playImpactSound(ballSpeedMph) {
+        if (!audioEnabled || typeof Tone === 'undefined') return;
+        try {
+          if (Tone.context.state !== 'running') Tone.start();
+          if (!impactSynth) {
+            impactSynth = new Tone.MembraneSynth({
+              pitchDecay: 0.015,
+              octaves: 5,
+              oscillator: { type: 'triangle' },
+              envelope: { attack: 0.001, decay: 0.14, sustain: 0, release: 0.05 }
+            }).toDestination();
+          }
+          const freq = ballSpeedMph > 140 ? 'C4' : ballSpeedMph > 110 ? 'A3' : 'F3';
+          impactSynth.triggerAttackRelease(freq, '16n');
+        } catch (err) {}
+      }
+
+      document.getElementById('btnAudioToggle').addEventListener('click', () => {
+        audioEnabled = !audioEnabled;
+        document.getElementById('iconAudioOn').classList.toggle('hidden', !audioEnabled);
+        document.getElementById('iconAudioOff').classList.toggle('hidden', audioEnabled);
+      });
+
+      // -----------------------------------------------------------------------
+      // CLUB PRESET HANDLING
+      // -----------------------------------------------------------------------
+      clubSelect.addEventListener('change', () => {
+        const opt = clubSelect.options[clubSelect.selectedIndex];
+        inputClubLen.value = opt.dataset.len;
+        inputSpin.value = opt.dataset.spin;
+        document.getElementById('hudSpinDisplay').textContent = `${opt.dataset.spin} rpm`;
+      });
+
+      inputSpin.addEventListener('input', () => {
+        document.getElementById('hudSpinDisplay').textContent = `${inputSpin.value} rpm`;
+      });
+
+      // -----------------------------------------------------------------------
+      // RESPONSIVE CANVAS RESIZING
+      // -----------------------------------------------------------------------
+      function resizeCanvases() {
+        const tRect = tCanvas.parentElement.getBoundingClientRect();
+        tCanvas.width = Math.max(1, Math.floor(tRect.width));
+        tCanvas.height = Math.max(1, Math.floor(tRect.height));
+
+        const rRect = rCanvas.parentElement.getBoundingClientRect();
+        rCanvas.width = Math.max(1, Math.floor(rRect.width));
+        rCanvas.height = Math.max(1, Math.floor(rRect.height));
+
+        if (!isLiveRadar && video.src) {
+          renderVideoOverlay();
+        } else if (!isLiveRadar) {
+          drawIdleTrackerGuide();
+        }
+        drawDrivingRange();
+      }
+      window.addEventListener('resize', resizeCanvases);
+
+      function setStatus(badgeText, bannerHtml, badgeColorClass = 'text-cyan-400 border-cyan-500/30') {
+        statusBadge.textContent = badgeText;
+        statusBadge.className = `px-2.5 py-1 rounded-full text-[10px] font-bold tracking-wider uppercase bg-slate-900/90 border shadow ${badgeColorClass}`;
+        guidanceBanner.innerHTML = bannerHtml;
+      }
+
+      function drawIdleTrackerGuide() {
+        const w = tCanvas.width;
+        const h = tCanvas.height;
+        tCtx.clearRect(0, 0, w, h);
+
+        // Subtle grid & alignment crosshair for camera setup
+        tCtx.strokeStyle = 'rgba(56, 189, 248, 0.15)';
+        tCtx.lineWidth = 1;
+        tCtx.beginPath();
+        tCtx.moveTo(w / 2, 0);
+        tCtx.lineTo(w / 2, h);
+        tCtx.moveTo(0, h * 0.72);
+        tCtx.lineTo(w, h * 0.72);
+        tCtx.stroke();
+
+        // Tee box indicator
+        tCtx.strokeStyle = 'rgba(16, 185, 129, 0.5)';
+        tCtx.setLineDash([4, 4]);
+        tCtx.strokeRect(w * 0.22, h * 0.32, w * 0.56, h * 0.48);
+        tCtx.setLineDash([]);
+
+        tCtx.fillStyle = 'rgba(148, 163, 184, 0.65)';
+        tCtx.font = '600 12px Inter, sans-serif';
+        tCtx.textAlign = 'center';
+        tCtx.fillText('OPTICAL CAPTURE ZONE (FACE-ON VIEW)', w / 2, h * 0.28);
+      }
+
+      // -----------------------------------------------------------------------
+      // 3. LIVE REAR-CAMERA OPTICAL MOTION RADAR (getUserMedia)
+      // -----------------------------------------------------------------------
+      const btnLiveRadar = document.getElementById('btnLiveRadar');
+      const btnLiveText = document.getElementById('btnLiveText');
+
+      function stopLiveRadar() {
+        isLiveRadar = false;
+        if (liveStream) {
+          liveStream.getTracks().forEach(t => t.stop());
+          liveStream = null;
+        }
+        video.srcObject = null;
+        btnLiveRadar.classList.remove('bg-rose-600', 'hover:bg-rose-500');
+        btnLiveRadar.classList.add('bg-blue-600', 'hover:bg-blue-500');
+        btnLiveText.textContent = 'Live Radar';
+      }
+
+      btnLiveRadar.addEventListener('click', async () => {
+        if (isLiveRadar) {
+          stopLiveRadar();
+          drawIdleTrackerGuide();
+          setStatus('STANDBY', 'Live radar stopped. Ready for next mode.');
+          return;
+        }
+
+        try {
+          videoScrubberBar.classList.add('hidden');
+          video.src = '';
+          liveStream = await navigator.mediaDevices.getUserMedia({
+            video: {
+              facingMode: { ideal: 'environment' },
+              width: { ideal: 1280 },
+              height: { ideal: 720 },
+              frameRate: { ideal: 120, min: 60 }
+            },
+            audio: false
+          });
+
+          video.srcObject = liveStream;
+          await video.play();
+          isLiveRadar = true;
+          prevFrameData = null;
+          liveDetectedPoints = [];
+
+          btnLiveRadar.classList.remove('bg-blue-600', 'hover:bg-blue-500');
+          btnLiveRadar.classList.add('bg-rose-600', 'hover:bg-rose-500');
+          btnLiveText.textContent = 'Stop Radar';
+
+          setStatus(
+            'RADAR ARMED',
+            'Place golf ball inside the <strong>green ROI box</strong> and swing!',
+            'text-emerald-400 border-emerald-500/40 radar-armed-pulse'
+          );
+          requestAnimationFrame(processLiveRadarFrame);
+        } catch (err) {
+          setStatus(
+            'CAMERA BLOCKED',
+            'Live camera requires HTTPS or localhost. Use <strong>Load Video</strong> with a slow-mo clip!',
+            'text-amber-400 border-amber-500/40'
+          );
+        }
+      });
+
+      function processLiveRadarFrame() {
+        if (!isLiveRadar) return;
+
+        const w = tCanvas.width;
+        const h = tCanvas.height;
+        tCtx.drawImage(video, 0, 0, w, h);
+
+        // Region of Interest (ROI) box where ball is teed and launched
+        const roiX = Math.floor(w * 0.22);
+        const roiY = Math.floor(h * 0.30);
+        const roiW = Math.floor(w * 0.56);
+        const roiH = Math.floor(h * 0.50);
+
+        const now = performance.now();
+        const isCoolingDown = now < cooldownUntil;
+
+        tCtx.strokeStyle = isCoolingDown ? '#f59e0b' : '#10b981';
+        tCtx.lineWidth = 2.5;
+        tCtx.strokeRect(roiX, roiY, roiW, roiH);
+
+        // Draw calibration line if user calibrated live view
+        drawCalibrationLine();
+
+        if (!isCoolingDown && roiW > 10 && roiH > 10) {
+          const frame = tCtx.getImageData(roiX, roiY, roiW, roiH);
+          if (prevFrameData && prevFrameData.width === roiW && prevFrameData.height === roiH) {
+            let sumX = 0, sumY = 0, count = 0;
+            const d1 = frame.data;
+            const d2 = prevFrameData.data;
+
+            // Stride by 3 pixels (12 bytes) for 60-120fps mobile efficiency
+            for (let i = 0; i < d1.length; i += 12) {
+              const lum1 = (d1[i] * 0.299 + d1[i + 1] * 0.587 + d1[i + 2] * 0.114);
+              const lum2 = (d2[i] * 0.299 + d2[i + 1] * 0.587 + d2[i + 2] * 0.114);
+
+              // High-luminance white golf ball sudden displacement
+              if (lum1 > 210 && (lum1 - lum2) > 70) {
+                const pxIndex = i / 4;
+                sumX += (pxIndex % roiW);
+                sumY += Math.floor(pxIndex / roiW);
+                count++;
+              }
+            }
+
+            if (count >= 6 && count <= 500) {
+              const cx = roiX + (sumX / count);
+              const cy = roiY + (sumY / count);
+
+              tCtx.fillStyle = '#ef4444';
+              tCtx.beginPath();
+              tCtx.arc(cx, cy, 8, 0, Math.PI * 2);
+              tCtx.fill();
+
+              liveDetectedPoints.push({ x: cx, y: cy, t: now });
+
+              if (liveDetectedPoints.length >= 2) {
+                const p1 = liveDetectedPoints[liveDetectedPoints.length - 2];
+                const p2 = liveDetectedPoints[liveDetectedPoints.length - 1];
+                const dt = (p2.t - p1.t) / 1000;
+
+                if (dt > 0.002 && dt < 0.09) {
+                  const dxMeters = Math.abs(p2.x - p1.x) / pixelsPerMeter;
+                  const dyMeters = (p1.y - p2.y) / pixelsPerMeter; // Upward on screen is positive launch
+                  const distMeters = Math.hypot(dxMeters, dyMeters);
+                  const speedMps = distMeters / dt;
+                  const speedMph = speedMps * 2.23694;
+
+                  if (speedMph >= 35 && speedMph <= 215 && dyMeters > -0.05) {
+                    const launchDeg = Math.max(4, Math.min(46, Math.atan2(Math.max(0.01, dyMeters), Math.max(0.01, dxMeters)) * (180 / Math.PI)));
+                    const sideDeg = (Math.random() - 0.5) * 4.5; // Slight natural dispersion estimate in 2D single-cam mode
+                    triggerShot(speedMph, launchDeg, sideDeg, 'Live Radar');
+                    liveDetectedPoints = [];
+                    cooldownUntil = now + 2200; // 2.2s cooldown so follow-through doesn't double trigger
+                  }
+                }
+              }
+            } else if (liveDetectedPoints.length > 0 && (now - liveDetectedPoints[liveDetectedPoints.length - 1].t) > 140) {
+              liveDetectedPoints = [];
+            }
+          }
+          prevFrameData = frame;
+        }
+
+        requestAnimationFrame(processLiveRadarFrame);
+      }
+
+      // -----------------------------------------------------------------------
+      // 4. SLOW-MOTION VIDEO UPLOAD & FRAME-BY-FRAME TRACKING
+      // -----------------------------------------------------------------------
+      document.getElementById('videoFileInput').addEventListener('change', (e) => {
+        const file = e.target.files[0];
+        if (!file) return;
+
+        stopLiveRadar();
+        const url = URL.createObjectURL(file);
+        video.src = url;
+        video.onloadedmetadata = () => {
+          video.currentTime = Math.min(0.1, video.duration / 2);
+          videoScrubberBar.classList.remove('hidden');
+          videoSlider.max = video.duration;
+          videoSlider.value = video.currentTime;
+          calibrationPoints = [];
+          manualBallPoints = [];
+          setStatus(
+            'VIDEO LOADED',
+            '1) Tap <strong>Set Scale</strong> & tap grip-to-clubhead. 2) Step to impact, tap ball, step <strong>+1F</strong>, tap ball again!',
+            'text-cyan-400 border-cyan-500/40'
+          );
+        };
+      });
+
+      video.addEventListener('seeked', () => {
+        if (!isLiveRadar) {
+          videoSlider.value = video.currentTime;
+          renderVideoOverlay();
+        }
+      });
+
+      videoSlider.addEventListener('input', () => {
+        if (video.src) {
+          video.currentTime = parseFloat(videoSlider.value);
+        }
+      });
+
+      function stepVideoFrames(deltaFrames) {
+        if (!video.src) return;
+        const fps = Math.max(24, parseFloat(inputFps.value) || 120);
+        const stepSec = deltaFrames / fps;
+        video.currentTime = Math.max(0, Math.min(video.duration, video.currentTime + stepSec));
+      }
+
+      document.getElementById('btnStepFwd').addEventListener('click', () => stepVideoFrames(1));
+      document.getElementById('btnStepBack').addEventListener('click', () => stepVideoFrames(-1));
+
+      function drawCalibrationLine() {
+        if (calibrationPoints.length === 0) return;
+        tCtx.strokeStyle = '#38bdf8';
+        tCtx.fillStyle = '#38bdf8';
+        tCtx.lineWidth = 3;
+
+        calibrationPoints.forEach(pt => {
+          tCtx.beginPath();
+          tCtx.arc(pt.x, pt.y, 6, 0, Math.PI * 2);
+          tCtx.fill();
+        });
+
+        if (calibrationPoints.length === 2) {
+          tCtx.beginPath();
+          tCtx.moveTo(calibrationPoints[0].x, calibrationPoints[0].y);
+          tCtx.lineTo(calibrationPoints[1].x, calibrationPoints[1].y);
+          tCtx.stroke();
+        }
+      }
+
+      function renderVideoOverlay() {
+        const w = tCanvas.width;
+        const h = tCanvas.height;
+        tCtx.clearRect(0, 0, w, h);
+
+        if (video.src && video.readyState >= 2) {
+          // Maintain aspect ratio within canvas
+          const vw = video.videoWidth || w;
+          const vh = video.videoHeight || h;
+          const scale = Math.min(w / vw, h / vh);
+          const drawW = vw * scale;
+          const drawH = vh * scale;
+          const offsetX = (w - drawW) / 2;
+          const offsetY = (h - drawH) / 2;
+          tCtx.drawImage(video, offsetX, offsetY, drawW, drawH);
+        }
+
+        drawCalibrationLine();
+
+        // Draw ball position markers
+        manualBallPoints.forEach((pt, idx) => {
+          tCtx.fillStyle = idx === 0 ? '#facc15' : '#ef4444';
+          tCtx.strokeStyle = '#ffffff';
+          tCtx.lineWidth = 2;
+          tCtx.beginPath();
+          tCtx.arc(pt.x, pt.y, 7, 0, Math.PI * 2);
+          tCtx.fill();
+          tCtx.stroke();
+        });
+
+        if (manualBallPoints.length === 2) {
+          tCtx.strokeStyle = '#facc15';
+          tCtx.lineWidth = 2.5;
+          tCtx.beginPath();
+          tCtx.moveTo(manualBallPoints[0].x, manualBallPoints[0].y);
+          tCtx.lineTo(manualBallPoints[1].x, manualBallPoints[1].y);
+          tCtx.stroke();
+        }
+      }
+
+      // -----------------------------------------------------------------------
+      // 5. TWO-POINT SCALE CALIBRATION & BALL DISPLACEMENT CLICK HANDLER
+      // -----------------------------------------------------------------------
+      document.getElementById('btnCalibrate').addEventListener('click', () => {
+        isCalibrating = true;
+        calibrationPoints = [];
+        setStatus(
+          'CALIBRATING',
+          'Tap the <strong>TOP OF THE GRIP</strong>, then tap the <strong>CLUBHEAD</strong> to lock real-world scale.',
+          'text-amber-400 border-amber-500/40'
+        );
+        if (!isLiveRadar && video.src) renderVideoOverlay();
+      });
+
+      tCanvas.addEventListener('click', (e) => {
+        const rect = tCanvas.getBoundingClientRect();
+        const x = e.clientX - rect.left;
+        const y = e.clientY - rect.top;
+
+        // Handle Two-Point Club Length Calibration
+        if (isCalibrating) {
+          calibrationPoints.push({ x, y });
+          if (!isLiveRadar && video.src) renderVideoOverlay();
+
+          if (calibrationPoints.length === 2) {
+            const pxDist = Math.hypot(
+              calibrationPoints[1].x - calibrationPoints[0].x,
+              calibrationPoints[1].y - calibrationPoints[0].y
+            );
+            const clubInches = Math.max(12, parseFloat(inputClubLen.value) || 37.0);
+            const clubMeters = clubInches * 0.0254;
+            pixelsPerMeter = Math.max(20, pxDist / clubMeters);
+            scaleBadge.textContent = `Scale: ${Math.round(pixelsPerMeter)} px/m`;
+            isCalibrating = false;
+            manualBallPoints = [];
+
+            setStatus(
+              'SCALE LOCKED',
+              video.src
+                ? 'Scale locked! Tap the <strong>golf ball</strong> right after impact, tap <strong>+1F</strong>, and tap the ball again.'
+                : 'Scale locked! Ready for Live Radar or Slow-Mo Video.',
+              'text-emerald-400 border-emerald-500/40'
+            );
+          }
+          return;
+        }
+
+        // Handle Frame-by-Frame Ball Position Tracking in Video Mode
+        if (!isLiveRadar && video.src) {
+          manualBallPoints.push({ x, y, time: video.currentTime });
+          renderVideoOverlay();
+
+          if (manualBallPoints.length === 1) {
+            setStatus(
+              'POINT 1 MARKED',
+              'Now tap <strong>+1F</strong> (next frame) and tap the golf ball in its new position.',
+              'text-amber-300 border-amber-500/40'
+            );
+          } else if (manualBallPoints.length >= 2) {
+            const p1 = manualBallPoints[0];
+            const p2 = manualBallPoints[1];
+            const fps = Math.max(24, parseFloat(inputFps.value) || 120);
+            const dt = Math.abs(p2.time - p1.time) > 0.0001 ? Math.abs(p2.time - p1.time) : (1 / fps);
+
+            const dxMeters = Math.abs(p2.x - p1.x) / pixelsPerMeter;
+            const dyMeters = (p1.y - p2.y) / pixelsPerMeter; // Y increases upward
+            const distMeters = Math.hypot(dxMeters, dyMeters);
+
+            const speedMps = distMeters / dt;
+            const speedMph = Math.min(220, Math.max(20, speedMps * 2.23694));
+            const launchDeg = Math.max(3, Math.min(50, Math.atan2(Math.max(0.01, dyMeters), Math.max(0.01, dxMeters)) * (180 / Math.PI)));
+
+            triggerShot(speedMph, launchDeg, 0, 'Slow-Mo Video');
+            setStatus(
+              'SHOT CALCULATED',
+              `Tracked <strong>${speedMph.toFixed(1)} mph</strong> at <strong>${launchDeg.toFixed(1)}°</strong>! Tap ball again to measure another shot.`,
+              'text-emerald-400 border-emerald-500/40'
+            );
+            setTimeout(() => {
+              manualBallPoints = [];
+              if (video.src) renderVideoOverlay();
+            }, 900);
+          }
+        }
+      });
+
+      // -----------------------------------------------------------------------
+      // 6. AERODYNAMIC DRAG & MAGNUS LIFT BALL FLIGHT PHYSICS ENGINE
+      // -----------------------------------------------------------------------
+      function computeAerodynamicFlight(ballSpeedMph, launchDeg, sideDeg, spinRpm) {
+        const v0 = ballSpeedMph * 0.44704; // Convert mph to m/s
+        const theta = (launchDeg * Math.PI) / 180;
+        const psi = (sideDeg * Math.PI) / 180;
+
+        let vx = v0 * Math.cos(theta) * Math.cos(psi);
+        let vy = v0 * Math.sin(theta);
+        let vz = v0 * Math.cos(theta) * Math.sin(psi);
+
+        let x = 0; // Downrange (m)
+        let y = 0.03; // Height above turf (m)
+        let z = 0; // Lateral offline (m)
+        let maxHeightMeters = 0;
+
+        // Golf ball physical constants
+        const dt = 0.015; // 15ms integration step
+        const g = 9.81; // Gravity (m/s^2)
+        const rho = 1.225; // Standard sea-level air density (kg/m^3)
+        const radius = 0.02135; // USGA golf ball radius (m)
+        const area = Math.PI * radius * radius; // Cross-sectional area (m^2)
+        const mass = 0.04593; // USGA golf ball mass (kg)
+        const omega = (spinRpm * 2 * Math.PI) / 60; // Angular velocity (rad/s)
+
+        const trajectory = [{ x: 0, y: 0, z: 0 }];
+
+        while (y > 0 && trajectory.length < 1500) {
+          const v = Math.hypot(vx, vy, vz);
+          if (v < 0.1) break;
+
+          // Dimensionless spin ratio S = (omega * r) / v
+          const spinRatio = (omega * radius) / v;
+
+          // Empirical golf ball drag & Magnus lift coefficients
+          const cd = 0.225 + 0.16 * spinRatio;
+          const cl = Math.min(0.34, 0.12 + 0.42 * spinRatio);
+
+          // Aerodynamic drag and Magnus lift magnitudes
+          const dragFactor = (0.5 * rho * area * cd * v) / mass;
+          const liftFactor = (0.5 * rho * area * cl * v) / mass;
+
+          // Accelerations (Lift acts perpendicular to velocity in the vertical plane)
+          const horizSpeed = Math.hypot(vx, vz) || 1;
+          const ax = -dragFactor * vx - liftFactor * vy * (vx / horizSpeed);
+          const ay = -dragFactor * vy + liftFactor * horizSpeed - g;
+          const az = -dragFactor * vz - liftFactor * vy * (vz / horizSpeed);
+
+          vx += ax * dt;
+          vy += ay * dt;
+          vz += az * dt;
+
+          x += vx * dt;
+          y += vy * dt;
+          z += vz * dt;
+
+          if (y > maxHeightMeters) maxHeightMeters = y;
+          trajectory.push({ x, y: Math.max(0, y), z });
+        }
+
+        const carryYards = x * 1.09361;
+        const offlineYards = z * 1.09361;
+        const apexFeet = maxHeightMeters * 3.28084;
+        // Estimate rollout based on descent angle / spin
+        const rollFactor = spinRpm > 7500 ? 1.02 : spinRpm > 5000 ? 1.05 : 1.09;
+        const totalYards = carryYards * rollFactor;
+
+        return {
+          trajectory,
+          ballSpeedMph,
+          launchDeg,
+          sideDeg,
+          spinRpm,
+          carryYards,
+          totalYards,
+          offlineYards,
+          apexFeet
+        };
+      }
+
+      function triggerShot(ballSpeedMph, launchDeg, sideDeg, source = 'Manual') {
+        const spinRpm = parseFloat(inputSpin.value) || 6800;
+        const clubName = clubSelect.value;
+        const flight = computeAerodynamicFlight(ballSpeedMph, launchDeg, sideDeg, spinRpm);
+
+        // Update Telemetry HUD
+        document.getElementById('hudSpeed').textContent = flight.ballSpeedMph.toFixed(1);
+        document.getElementById('hudLaunch').textContent = `${flight.launchDeg.toFixed(1)}°`;
+        document.getElementById('hudCarry').textContent = Math.round(flight.carryYards);
+
+        const dirLabel = Math.abs(flight.offlineYards) < 0.5 ? 'C' : (flight.offlineYards > 0 ? 'R' : 'L');
+        document.getElementById('hudOffline').textContent = `${Math.abs(flight.offlineYards).toFixed(1)}${dirLabel}`;
+        document.getElementById('hudApex').textContent = `${Math.round(flight.apexFeet)} ft`;
+        document.getElementById('hudTotal').textContent = `${Math.round(flight.totalYards)} yds`;
+
+        playImpactSound(flight.ballSpeedMph);
+
+        // Save to Session History
+        const shotRecord = {
+          id: Date.now(),
+          timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' }),
+          club: clubName,
+          source,
+          ...flight
+        };
+
+        shotHistory.push(shotRecord);
+        if (shotHistory.length > 50) shotHistory.shift();
+        try {
+          localStorage.setItem('pocket_golf_shots_v1', JSON.stringify(shotHistory));
+        } catch (e) {}
+
+        updateHistoryUI();
+
+        // Start 3D Tracer Animation
+        activeFlight = {
+          shot: shotRecord,
+          index: 0
+        };
+        animateRangeLoop();
+      }
+
+      // Test Shot Button (Uses selected club's realistic launch profile + slight variation)
+      document.getElementById('btnTestShot').addEventListener('click', () => {
+        const opt = clubSelect.options[clubSelect.selectedIndex];
+        const baseSpeed = parseFloat(opt.dataset.speed) || 120;
+        const baseLaunch = parseFloat(opt.dataset.launch) || 16;
+
+        const speed = baseSpeed + (Math.random() - 0.5) * 8;
+        const launch = baseLaunch + (Math.random() - 0.5) * 2.5;
+        const side = (Math.random() - 0.5) * 7;
+
+        triggerShot(speed, launch, side, 'Sim Test');
+        setStatus('SIM TEST', `Simulated <strong>${clubSelect.value}</strong> shot launched onto range!`);
+      });
+
+      document.getElementById('btnClearTracers').addEventListener('click', () => {
+        activeFlight = null;
+        drawDrivingRange(true);
+      });
+
+      // -----------------------------------------------------------------------
+      // 7. 3D-PERSPECTIVE DRIVING RANGE RENDERER
+      // -----------------------------------------------------------------------
+      let clearTracersFlag = false;
+
+      function project3DPoint(xMeters, yMeters, zMeters, width, height) {
+        const yardsDownrange = xMeters * 1.09361;
+        const yardsLateral = zMeters * 1.09361;
+        const yardsHeight = yMeters * 1.09361;
+
+        const focal = 280;
+        const cameraOffset = 24;
+        const depth = Math.max(8, yardsDownrange + cameraOffset);
+        const scale = focal / depth;
+
+        const horizonY = height * 0.34;
+        const teeGroundY = height * 0.93;
+
+        const screenX = (width / 2) + yardsLateral * scale * 2.3;
+        const groundYAtDepth = horizonY + (teeGroundY - horizonY) * (cameraOffset / depth);
+        const screenY = groundYAtDepth - yardsHeight * scale * 1.75;
+
+        return { x: screenX, y: screenY, scale };
+      }
+
+      function drawDrivingRange(hideOldTracers = false) {
+        if (hideOldTracers) clearTracersFlag = true;
+        const w = rCanvas.width;
+        const h = rCanvas.height;
+        const horizonY = h * 0.34;
+
+        // 1. Twilight / Stadium Sky Gradient
+        const skyGrad = rCtx.createLinearGradient(0, 0, 0, horizonY);
+        skyGrad.addColorStop(0, '#090d16');
+        skyGrad.addColorStop(0.65, '#0f2942');
+        skyGrad.addColorStop(1, '#1e40af');
+        rCtx.fillStyle = skyGrad;
+        rCtx.fillRect(0, 0, w, horizonY);
+
+        // Distant mountain / tree silhouette along horizon
+        rCtx.fillStyle = '#062016';
+        rCtx.beginPath();
+        rCtx.moveTo(0, horizonY);
+        for (let x = 0; x <= w; x += 40) {
+          const ridge = Math.sin(x * 0.015) * 6 + Math.cos(x * 0.04) * 4;
+          rCtx.lineTo(x, horizonY - 6 + ridge);
+        }
+        rCtx.lineTo(w, horizonY);
+        rCtx.closePath();
+        rCtx.fill();
+
+        // 2. Fairway Turf Gradient
+        const turfGrad = rCtx.createLinearGradient(0, horizonY, 0, h);
+        turfGrad.addColorStop(0, '#064e3b');
+        turfGrad.addColorStop(0.35, '#047857');
+        turfGrad.addColorStop(1, '#065f46');
+        rCtx.fillStyle = turfGrad;
+        rCtx.fillRect(0, horizonY, w, h - horizonY);
+
+        // 3. Fairway Mowing Stripes & Yardage Lines (50y to 300y)
+        rCtx.font = '600 10px "JetBrains Mono", monospace';
+        rCtx.textAlign = 'left';
+
+        for (let yds = 50; yds <= 300; yds += 50) {
+          const m = yds / 1.09361;
+          const pLeft = project3DPoint(m, 0, -32, w, h);
+          const pRight = project3DPoint(m, 0, 32, w, h);
+
+          rCtx.strokeStyle = 'rgba(255, 255, 255, 0.18)';
+          rCtx.lineWidth = 1;
+          rCtx.beginPath();
+          rCtx.moveTo(pLeft.x, pLeft.y);
+          rCtx.lineTo(pRight.x, pRight.y);
+          rCtx.stroke();
+
+          // Yardage Sign Pill
+          rCtx.fillStyle = 'rgba(255, 255, 255, 0.75)';
+          rCtx.fillText(`${yds}y`, pRight.x + 6, pRight.y + 3);
+        }
+
+        // Target Greens at 100y, 150y, 200y, 250y
+        [100, 150, 200, 250].forEach(yds => {
+          const m = yds / 1.09361;
+          const center = project3DPoint(m, 0, 0, w, h);
+          const rx = Math.max(6, center.scale * 14);
+          const ry = Math.max(2, center.scale * 4.5);
+
+          rCtx.fillStyle = 'rgba(52, 211, 153, 0.25)';
+          rCtx.strokeStyle = 'rgba(110, 231, 183, 0.5)';
+          rCtx.lineWidth = 1;
+          rCtx.beginPath();
+          rCtx.ellipse(center.x, center.y, rx, ry, 0, 0, Math.PI * 2);
+          rCtx.fill();
+          rCtx.stroke();
+
+          // Flagstick
+          rCtx.strokeStyle = '#f8fafc';
+          rCtx.beginPath();
+          rCtx.moveTo(center.x, center.y);
+          rCtx.lineTo(center.x, center.y - Math.max(6, center.scale * 11));
+          rCtx.stroke();
+        });
+
+        // Center Aiming Line
+        const teePt = project3DPoint(0, 0, 0, w, h);
+        const farPt = project3DPoint(320, 0, 0, w, h);
+        rCtx.strokeStyle = 'rgba(250, 204, 21, 0.28)';
+        rCtx.setLineDash([4, 4]);
+        rCtx.beginPath();
+        rCtx.moveTo(teePt.x, teePt.y);
+        rCtx.lineTo(farPt.x, farPt.y);
+        rCtx.stroke();
+        rCtx.setLineDash([]);
+
+        // 4. Draw Recent Shot Tracers (Last 6 shots)
+        if (!clearTracersFlag) {
+          const recentShots = shotHistory.slice(-6);
+          recentShots.forEach(shot => {
+            const isCurrent = activeFlight && activeFlight.shot.id === shot.id;
+            const maxIdx = isCurrent ? activeFlight.index : shot.trajectory.length - 1;
+            if (maxIdx < 1) return;
+
+            // Ground shadow tracer
+            rCtx.strokeStyle = isCurrent ? 'rgba(0, 0, 0, 0.35)' : 'rgba(0, 0, 0, 0.15)';
+            rCtx.lineWidth = isCurrent ? 2 : 1;
+            rCtx.beginPath();
+            for (let i = 0; i <= maxIdx; i++) {
+              const pt = shot.trajectory[i];
+              const g2d = project3DPoint(pt.x, 0, pt.z, w, h);
+              if (i === 0) rCtx.moveTo(g2d.x, g2d.y);
+              else rCtx.lineTo(g2d.x, g2d.y);
+            }
+            rCtx.stroke();
+
+            // Aerial flight tracer
+            rCtx.strokeStyle = isCurrent ? '#facc15' : 'rgba(56, 189, 248, 0.45)';
+            rCtx.lineWidth = isCurrent ? 3 : 1.5;
+            rCtx.beginPath();
+            for (let i = 0; i <= maxIdx; i++) {
+              const pt = shot.trajectory[i];
+              const p2d = project3DPoint(pt.x, pt.y, pt.z, w, h);
+              if (i === 0) rCtx.moveTo(p2d.x, p2d.y);
+              else rCtx.lineTo(p2d.x, p2d.y);
+            }
+            rCtx.stroke();
+
+            // Golf Ball Marker
+            const endPt = shot.trajectory[maxIdx];
+            const ball2d = project3DPoint(endPt.x, endPt.y, endPt.z, w, h);
+            rCtx.fillStyle = isCurrent ? '#ffffff' : 'rgba(255, 255, 255, 0.7)';
+            rCtx.beginPath();
+            rCtx.arc(ball2d.x, ball2d.y, Math.max(2.5, ball2d.scale * 0.42), 0, Math.PI * 2);
+            rCtx.fill();
+          });
+        }
+      }
+
+      function animateRangeLoop() {
+        if (!activeFlight) return;
+        clearTracersFlag = false;
+        activeFlight.index += 3; // Smooth 60fps playback speed
+
+        if (activeFlight.index >= activeFlight.shot.trajectory.length) {
+          activeFlight.index = activeFlight.shot.trajectory.length - 1;
+          drawDrivingRange();
+          activeFlight = null;
+          return;
+        }
+
+        drawDrivingRange();
+        requestAnimationFrame(animateRangeLoop);
+      }
+
+      // -----------------------------------------------------------------------
+      // 8. SESSION SHOT HISTORY & CSV EXPORT
+      // -----------------------------------------------------------------------
+      const historyDrawer = document.getElementById('historyDrawer');
+      const shotCountBadge = document.getElementById('shotCountBadge');
+
+      function updateHistoryUI() {
+        shotCountBadge.textContent = shotHistory.length;
+        const tbody = document.getElementById('shotTableBody');
+
+        if (shotHistory.length === 0) {
+          document.getElementById('avgCount').textContent = '0';
+          document.getElementById('avgSpeed').textContent = '--';
+          document.getElementById('avgLaunch').textContent = '--';
+          document.getElementById('avgCarry').textContent = '--';
+          tbody.innerHTML = `<tr><td colspan="6" class="py-8 text-center text-slate-500 font-sans">No shots recorded yet. Hit a shot or tap "Test Shot".</td></tr>`;
+          return;
+        }
+
+        const totalSpeed = shotHistory.reduce((acc, s) => acc + s.ballSpeedMph, 0);
+        const totalLaunch = shotHistory.reduce((acc, s) => acc + s.launchDeg, 0);
+        const totalCarry = shotHistory.reduce((acc, s) => acc + s.carryYards, 0);
+
+        document.getElementById('avgCount').textContent = shotHistory.length;
+        document.getElementById('avgSpeed').textContent = `${(totalSpeed / shotHistory.length).toFixed(1)}`;
+        document.getElementById('avgLaunch').textContent = `${(totalLaunch / shotHistory.length).toFixed(1)}°`;
+        document.getElementById('avgCarry').textContent = `${Math.round(totalCarry / shotHistory.length)}y`;
+
+        tbody.innerHTML = [...shotHistory].reverse().map((s, idx) => {
+          const shotNum = shotHistory.length - idx;
+          const dir = Math.abs(s.offlineYards) < 0.5 ? 'C' : (s.offlineYards > 0 ? 'R' : 'L');
+          return `
+            <tr class="hover:bg-slate-800/50">
+              <td class="py-2.5 px-3 text-slate-400">${shotNum}</td>
+              <td class="py-2.5 px-2 font-sans font-bold text-white">${s.club}</td>
+              <td class="py-2.5 px-2 text-emerald-400 font-bold">${s.ballSpeedMph.toFixed(1)}</td>
+              <td class="py-2.5 px-2 text-cyan-400">${s.launchDeg.toFixed(1)}°</td>
+              <td class="py-2.5 px-2 text-amber-400 font-bold">${Math.round(s.carryYards)}y</td>
+              <td class="py-2.5 px-3 text-purple-300">${Math.abs(s.offlineYards).toFixed(1)}y ${dir}</td>
+            </tr>
+          `;
+        }).join('');
+      }
+
+      document.getElementById('btnHistoryToggle').addEventListener('click', () => {
+        updateHistoryUI();
+        historyDrawer.classList.remove('hidden');
+      });
+
+      document.getElementById('btnCloseHistory').addEventListener('click', () => {
+        historyDrawer.classList.add('hidden');
+      });
+
+      document.getElementById('btnClearHistory').addEventListener('click', () => {
+        shotHistory = [];
+        try {
+          localStorage.removeItem('pocket_golf_shots_v1');
+        } catch (e) {}
+        updateHistoryUI();
+        drawDrivingRange(true);
+      });
+
+      document.getElementById('btnExportCsv').addEventListener('click', () => {
+        if (shotHistory.length === 0) return;
+
+        const headers = ['Shot #', 'Time', 'Club', 'Source', 'Ball Speed (mph)', 'Launch Angle (deg)', 'Spin (rpm)', 'Apex (ft)', 'Carry (yds)', 'Total (yds)', 'Offline (yds)'];
+        const rows = shotHistory.map((s, i) => [
+          i + 1,
+          s.timestamp,
+          s.club,
+          s.source,
+          s.ballSpeedMph.toFixed(1),
+          s.launchDeg.toFixed(1),
+          Math.round(s.spinRpm),
+          Math.round(s.apexFeet),
+          Math.round(s.carryYards),
+          Math.round(s.totalYards),
+          s.offlineYards.toFixed(1)
+        ]);
+
+        const csvContent = [headers, ...rows].map(r => r.join(',')).join('\n');
+        const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = `pocket_golf_session_${new Date().toISOString().slice(0, 10)}.csv`;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        URL.revokeObjectURL(url);
+      });
+
+      // Initialize UI on load
+      window.addEventListener('load', () => {
+        resizeCanvases();
+        updateHistoryUI();
+      });
+    })();
+  </script>
+</body>
+</html>
